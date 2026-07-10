@@ -13,7 +13,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "preview": "vite preview",
-    "build:electron": "tsc -b && vite build && electron-builder --win --dir"
+    "build:electron": "tsc -b && vite build && electron-builder --win --dir && xcopy start-app.bat release\\win-unpacked\\ /y && xcopy Setup-Shortcuts.ps1 release\\win-unpacked\\ /y && xcopy create-shortcut.ps1 release\\win-unpacked\\ /y"
   },
   "dependencies": {
     "@duckdb/duckdb-wasm": "^1.33.1-dev13.0",
