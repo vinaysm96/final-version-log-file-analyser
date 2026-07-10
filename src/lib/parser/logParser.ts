@@ -12,6 +12,7 @@ export interface LogEntry {
     bot_name: string;
     bot_type: string;
     response_time?: number;
+    file_name?: string;
 }
 
 
@@ -37,7 +38,7 @@ const isMethod = (s: string) => ['GET', 'POST', 'PUT', 'DELETE', 'HEAD', 'OPTION
 const isStatus = (s: string) => /^[1-5]\d{2}$/.test(s);
 const isDate = (s: string) => /\[.+\]/.test(s) || /\d{4}-\d{2}-\d{2}/.test(s) || /\d{2}\/\w{3}\/\d{4}/.test(s);
 
-const tryParseJSON = (line: string): LogEntry | null => {
+const tryParseJSON = (line: string, fileName?: string): LogEntry | null => {
     try {
         if (!line.trim().startsWith('{')) return null;
         const json = JSON.parse(line);
@@ -70,6 +71,13 @@ const tryParseJSON = (line: string): LogEntry | null => {
 
         const botInfo = detectBot(ua);
 
+        // Filter out static assets for user traffic, and optionally filter all user traffic to save memory
+        const isStaticAsset = /\.(js|css|png|jpg|jpeg|gif|svg|ico|webp|woff|woff2|ttf|eot|mp4|mp3|pdf|zip|tar|gz|map)$/i.test(url.split('?')[0]);
+        const skipUserAll = typeof localStorage !== 'undefined' && localStorage.getItem('skip_user_traffic') === 'true';
+        if (botInfo.type === 'user' && (skipUserAll || isStaticAsset)) {
+            return null;
+        }
+
         return {
             ip: String(ip),
             timestamp,
@@ -80,7 +88,8 @@ const tryParseJSON = (line: string): LogEntry | null => {
             referrer: String(referrer),
             user_agent: String(ua),
             bot_name: botInfo.name,
-            bot_type: botInfo.type
+            bot_type: botInfo.type,
+            file_name: fileName || 'default'
         };
 
     } catch (e) {
@@ -88,12 +97,12 @@ const tryParseJSON = (line: string): LogEntry | null => {
     }
 }
 
-export const parseLine = (line: string): LogEntry | null => {
+export const parseLine = (line: string, fileName?: string): LogEntry | null => {
     if (line.length === 0 || line.charCodeAt(0) === 35) return null; // '#' is 35
 
     // 0. Try JSON
     if (line[0] === '{') {
-        const jsonEntry = tryParseJSON(line);
+        const jsonEntry = tryParseJSON(line, fileName);
         if (jsonEntry) {
             if (jsonEntry.url !== '/' || jsonEntry.method !== 'GET') {
                 return jsonEntry;
@@ -121,6 +130,13 @@ export const parseLine = (line: string): LogEntry | null => {
         uaFinal = uaFinal.replace(/^"/, '').replace(/"$/, '');
         const botInfo = detectBot(uaFinal);
         
+        // Filter out static assets for user traffic, and optionally filter all user traffic to save memory
+        const isStaticAsset = /\.(js|css|png|jpg|jpeg|gif|svg|ico|webp|woff|woff2|ttf|eot|mp4|mp3|pdf|zip|tar|gz|map)$/i.test(url.split('?')[0]);
+        const skipUserAll = typeof localStorage !== 'undefined' && localStorage.getItem('skip_user_traffic') === 'true';
+        if (botInfo.type === 'user' && (skipUserAll || isStaticAsset)) {
+            return null;
+        }
+        
         return {
             ip,
             timestamp: parseDateApache(dateRaw),
@@ -131,7 +147,8 @@ export const parseLine = (line: string): LogEntry | null => {
             referrer: (referrer || '').replace(/^"/, '').replace(/"$/, ''),
             user_agent: uaFinal,
             bot_name: botInfo.name,
-            bot_type: botInfo.type
+            bot_type: botInfo.type,
+            file_name: fileName || 'default'
         };
     }
 
@@ -142,7 +159,7 @@ export const parseLine = (line: string): LogEntry | null => {
 
     // We map indices to types
     let ip = '0.0.0.0';
-    let timestamp = new Date().toISOString();
+    let timestamp = '';
     let method = 'GET';
     let url = '/';
     let status = 0;
@@ -161,17 +178,34 @@ export const parseLine = (line: string): LogEntry | null => {
             if (parts[i + 1]) url = parts[i + 1];
         }
         if (status === 0 && isStatus(p)) status = parseInt(p, 10);
-        if (timestamp === new Date().toISOString() && isDate(p)) {
-            // strip brackets
-            timestamp = parseDateApache(p.replace(/[\[\]]/g, ''));
+        if (!timestamp && isDate(p)) {
+            let dateStr = p.replace(/[\[\]]/g, '');
+            // Check for IIS or split date/time formats
+            if (parts[i+1] && /^\d{2}:\d{2}:\d{2}/.test(parts[i+1])) {
+                dateStr += ' ' + parts[i+1];
+                try {
+                    timestamp = new Date(dateStr).toISOString();
+                } catch { timestamp = parseDateApache(dateStr); }
+            } else {
+                timestamp = parseDateApache(dateStr);
+            }
         }
     }
+
+    if (!timestamp) timestamp = new Date().toISOString();
 
     // If we found at least a Status and Method, it's probably a log line.
     // Or at least a Status and URL?
     if (status > 0 && (foundMethodIdx !== -1 || url !== '/')) {
         const uaString = line.toLowerCase();
         const botInfo = detectBot(uaString);
+
+        // Filter out static assets for user traffic, and optionally filter all user traffic to save memory
+        const isStaticAsset = /\.(js|css|png|jpg|jpeg|gif|svg|ico|webp|woff|woff2|ttf|eot|mp4|mp3|pdf|zip|tar|gz|map)$/i.test(url.split('?')[0]);
+        const skipUserAll = typeof localStorage !== 'undefined' && localStorage.getItem('skip_user_traffic') === 'true';
+        if (botInfo.type === 'user' && (skipUserAll || isStaticAsset)) {
+            return null;
+        }
 
         return {
             ip,
@@ -183,7 +217,8 @@ export const parseLine = (line: string): LogEntry | null => {
             referrer: '',
             user_agent: uaString, // Pass full line as loose UserAgent if we can't parse it exact
             bot_name: botInfo.name,
-            bot_type: botInfo.type
+            bot_type: botInfo.type,
+            file_name: fileName || 'default'
         };
     }
 
@@ -193,7 +228,7 @@ export const parseLine = (line: string): LogEntry | null => {
     return null;
 };
 
-export const processChunk = (chunk: string): LogEntry[] => {
+export const processChunk = (chunk: string, fileName?: string): LogEntry[] => {
     const lines = chunk.split('\n');
     const entries: LogEntry[] = [];
     // Preallocate assuming most lines are valid
@@ -203,7 +238,7 @@ export const processChunk = (chunk: string): LogEntry[] => {
         const line = lines[i];
         if (line.length === 0 || line.charCodeAt(0) === 35) continue; // '#'
         
-        const entry = parseLine(line);
+        const entry = parseLine(line, fileName);
         if (entry) entries.push(entry);
     }
     return entries;
