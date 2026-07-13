@@ -51,7 +51,37 @@ export const IPIntelligence = ({ }: IPProps) => {
     };
 
     if (loading) return <div className="p-8 text-center animate-pulse text-muted-foreground">Loading IP Intelligence...</div>;
-    if (error) return <div className="p-8 text-center text-red-500 font-mono">Error loading IP Intelligence: {error}</div>;
+
+    if (error) return (
+        <div className="p-8 text-center text-red-500 max-w-2xl mx-auto space-y-6">
+            <h3 className="font-bold text-2xl">IP Intelligence Failed</h3>
+            <div className="p-4 bg-muted border border-border rounded-xl font-mono text-sm text-left text-foreground whitespace-pre-wrap">{error}</div>
+            
+            <div className="p-4 bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 rounded-xl text-sm text-left">
+                <strong>Memory limit exceeded.</strong> Querying large log files in RAM can trigger memory crashes. Clear the database files below to unbrick the app.
+            </div>
+
+            <button 
+                onClick={async () => {
+                    if (confirm("Are you sure you want to delete all parsed logs to unbrick the app? This cannot be undone.")) {
+                        try {
+                            const { db, conn } = await import('../../lib/db');
+                            if (conn) { try { await conn.close(); } catch {} }
+                            if (db) { try { await db.terminate(); } catch {} }
+                        } catch {}
+                        try {
+                            const dir = await navigator.storage.getDirectory();
+                            await dir.removeEntry('seologanalyzer.db', { recursive: true });
+                        } catch {}
+                        window.location.reload();
+                    }
+                }}
+                className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-medium rounded-xl shadow-md transition-colors text-sm hover:scale-[1.02] active:scale-[0.98] transition-transform"
+            >
+                Clear Database & Restart App
+            </button>
+        </div>
+    );
 
     return (
         <div className="space-y-6 animate-in fade-in">

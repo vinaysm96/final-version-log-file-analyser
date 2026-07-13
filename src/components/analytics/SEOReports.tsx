@@ -173,7 +173,36 @@ export function SEOReports({ domain = "" }: { domain?: string }) {
         return () => { isMounted = false; };
     }, []);
 
-    if (errorMsg) return <div className="p-8 text-center text-red-500 max-w-2xl mx-auto"><h3 className="font-bold text-xl mb-4">SEO Audit Query Failed</h3><div className="p-4 bg-muted font-mono text-sm text-left whitespace-pre-wrap">{errorMsg}</div></div>;
+    if (errorMsg) return (
+        <div className="p-8 text-center text-red-500 max-w-2xl mx-auto space-y-6">
+            <h3 className="font-bold text-2xl">SEO Audit Failed</h3>
+            <div className="p-4 bg-muted border border-border rounded-xl font-mono text-sm text-left text-foreground whitespace-pre-wrap">{errorMsg}</div>
+            
+            <div className="p-4 bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 rounded-xl text-sm text-left">
+                <strong>Memory limit exceeded.</strong> Clear the database files below to unbrick the app.
+            </div>
+
+            <button 
+                onClick={async () => {
+                    if (confirm("Are you sure you want to delete all parsed logs to unbrick the app? This cannot be undone.")) {
+                        try {
+                            const { db, conn } = await import('../../lib/db');
+                            if (conn) { try { await conn.close(); } catch {} }
+                            if (db) { try { await db.terminate(); } catch {} }
+                        } catch {}
+                        try {
+                            const dir = await navigator.storage.getDirectory();
+                            await dir.removeEntry('seologanalyzer.db', { recursive: true });
+                        } catch {}
+                        window.location.reload();
+                    }
+                }}
+                className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-medium rounded-xl shadow-md transition-colors text-sm hover:scale-[1.02] active:scale-[0.98] transition-transform"
+            >
+                Clear Database & Restart App
+            </button>
+        </div>
+    );
     if (!issues && loading) return <div className="p-8 text-center animate-pulse">Running SEO Audits...</div>;
     if (!issues) return <div className="p-8 text-center">No audit data</div>;
 

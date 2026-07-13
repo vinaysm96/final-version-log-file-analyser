@@ -45,6 +45,13 @@ export const parseExcel = async (file: File): Promise<LogEntry[]> => {
         const ua = map.ua !== -1 && row[map.ua] ? String(row[map.ua]) : 'Unknown';
         const botInfo = detectBot(ua);
 
+        // Filter out static assets for user traffic, and optionally filter all user traffic to save memory
+        const isStaticAsset = /\.(js|css|png|jpg|jpeg|gif|svg|ico|webp|woff|woff2|ttf|eot|mp4|mp3|pdf|zip|tar|gz|map)$/i.test(url.split('?')[0]);
+        const skipUserAll = typeof localStorage !== 'undefined' && localStorage.getItem('skip_user_traffic') !== 'false';
+        if (botInfo.type === 'user' && (skipUserAll || isStaticAsset)) {
+            continue;
+        }
+
         // Fallbacks
         const method = map.method !== -1 ? String(row[map.method]).toUpperCase() : 'GET';
         const status = map.status !== -1 ? parseInt(row[map.status]) : 200;

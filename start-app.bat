@@ -14,12 +14,6 @@ echo.
 :: Change to the project directory
 cd /d "%~dp0"
 
-:: Check if pre-built Electron app exists
-if exist "release\win-unpacked\SEO Log Analyzer.exe" (
-    echo Starting SEO Log Analyzer...
-    start "" "release\win-unpacked\SEO Log Analyzer.exe"
-    exit /b 0
-)
 
 echo [1/4] Checking environment...
 where node >nul 2>&1 || (echo [ERROR] Node.js not found. & pause & exit /b 1)
@@ -32,9 +26,13 @@ if not exist "node_modules\" (
     echo [2/4] Environment ready.
 )
 
-echo [3/4] Checking port 5173...
+echo [3/4] Checking port 5173 and killing lingering Electron processes...
 :: Use PowerShell to kill the process on port 5173 - much more reliable than CMD FOR loops
 powershell -NoProfile -Command "$conn = Get-NetTCPConnection -LocalPort 5173 -State Listen -ErrorAction SilentlyContinue; if ($conn) { $conn | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force; echo \"[*] Terminated existing process (ID: $($_.OwningProcess))\" } }"
+
+:: Kill ghost Electron processes to release locks on Chrome AppData folders
+taskkill /F /IM electron.exe >nul 2>&1
+taskkill /F /IM "SEO Log Analyzer.exe" >nul 2>&1
 
 :: Clear Vite cache
 if exist "node_modules\.vite\" rmdir /s /q "node_modules\.vite" >nul 2>&1

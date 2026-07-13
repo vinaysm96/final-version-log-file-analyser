@@ -26,6 +26,11 @@ function App() {
     localStorage.setItem('seo_domain', domain);
   }, [domain]);
 
+  // Default skip_user_traffic to true to protect against OOM on large files
+  if (localStorage.getItem('skip_user_traffic') === null) {
+    localStorage.setItem('skip_user_traffic', 'true');
+  }
+
   useEffect(() => {
     const updateDataset = async () => {
       const { updateActiveDataset } = await import('./lib/db');
@@ -248,6 +253,32 @@ function App() {
             </header>
 
             <section className="space-y-4">
+              {/* Skip user traffic toggle directly on Data Intake page */}
+              <div className="bg-card border border-border rounded-xl p-4 flex items-center justify-between shadow-sm">
+                <div className="space-y-0.5">
+                  <h4 className="font-semibold text-sm flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-blue-500" />
+                    Ignore All User Traffic (Highly Recommended)
+                  </h4>
+                  <p className="text-xs text-muted-foreground max-w-xl">
+                    Excludes standard user hits (like images, JS, CSS, fonts, and browser page views). Only imports search bots.
+                    This reduces the database size by **95%+**, preventing browser memory crashes on large files.
+                  </p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                  <input 
+                    type="checkbox" 
+                    checked={localStorage.getItem('skip_user_traffic') !== 'false'} 
+                    onChange={(e) => {
+                      localStorage.setItem('skip_user_traffic', e.target.checked ? 'true' : 'false');
+                      setRefreshTrigger(prev => prev + 1); // trigger state update
+                    }}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+              </div>
+
               <FileDropzone onFilesSelected={handleFilesSelected} isProcessing={processing} />
 
               {files.length > 0 && (

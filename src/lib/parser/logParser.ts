@@ -73,7 +73,7 @@ const tryParseJSON = (line: string, fileName?: string): LogEntry | null => {
 
         // Filter out static assets for user traffic, and optionally filter all user traffic to save memory
         const isStaticAsset = /\.(js|css|png|jpg|jpeg|gif|svg|ico|webp|woff|woff2|ttf|eot|mp4|mp3|pdf|zip|tar|gz|map)$/i.test(url.split('?')[0]);
-        const skipUserAll = typeof localStorage !== 'undefined' && localStorage.getItem('skip_user_traffic') === 'true';
+        const skipUserAll = typeof localStorage !== 'undefined' && localStorage.getItem('skip_user_traffic') !== 'false';
         if (botInfo.type === 'user' && (skipUserAll || isStaticAsset)) {
             return null;
         }
@@ -132,7 +132,7 @@ export const parseLine = (line: string, fileName?: string): LogEntry | null => {
         
         // Filter out static assets for user traffic, and optionally filter all user traffic to save memory
         const isStaticAsset = /\.(js|css|png|jpg|jpeg|gif|svg|ico|webp|woff|woff2|ttf|eot|mp4|mp3|pdf|zip|tar|gz|map)$/i.test(url.split('?')[0]);
-        const skipUserAll = typeof localStorage !== 'undefined' && localStorage.getItem('skip_user_traffic') === 'true';
+        const skipUserAll = typeof localStorage !== 'undefined' && localStorage.getItem('skip_user_traffic') !== 'false';
         if (botInfo.type === 'user' && (skipUserAll || isStaticAsset)) {
             return null;
         }
@@ -202,7 +202,7 @@ export const parseLine = (line: string, fileName?: string): LogEntry | null => {
 
         // Filter out static assets for user traffic, and optionally filter all user traffic to save memory
         const isStaticAsset = /\.(js|css|png|jpg|jpeg|gif|svg|ico|webp|woff|woff2|ttf|eot|mp4|mp3|pdf|zip|tar|gz|map)$/i.test(url.split('?')[0]);
-        const skipUserAll = typeof localStorage !== 'undefined' && localStorage.getItem('skip_user_traffic') === 'true';
+        const skipUserAll = typeof localStorage !== 'undefined' && localStorage.getItem('skip_user_traffic') !== 'false';
         if (botInfo.type === 'user' && (skipUserAll || isStaticAsset)) {
             return null;
         }

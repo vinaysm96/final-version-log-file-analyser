@@ -26,19 +26,37 @@ export function Settings() {
     }, []);
 
     const handleClearData = async () => {
-        if (!conn) return;
         if (!confirm("Are you sure you want to delete ALL parsed logs? This cannot be undone.")) return;
 
         setClearing(true);
+        setStatus("Releasing database locks...");
         try {
-            await conn.query(`DELETE FROM logs`);
-            // Also clear OPFS if available
+            // Terminate DuckDB first to release all active file locks on the seologanalyzer.db file
+            try {
+                const { db, conn } = await import('../../lib/db');
+                if (conn) {
+                    try { await conn.close(); } catch {}
+                }
+                if (db) {
+                    try { await db.terminate(); } catch {}
+                }
+            } catch (termErr) {
+                console.warn("Failed to terminate DuckDB connection:", termErr);
+            }
+
+            setStatus("Wiping database files...");
+            // Attempt to delete OPFS database file directly first. 
+            // This is critical to unbrick the app if DuckDB is in a fatal invalidated state.
             try {
                 const dir = await navigator.storage.getDirectory();
                 await dir.removeEntry('seologanalyzer.db', { recursive: true });
-            } catch { /* no OPFS */ }
+                console.log("OPFS database file deleted successfully");
+            } catch (opfsErr) {
+                console.warn("Could not delete OPFS file directly:", opfsErr);
+            }
+
             setStatus("All logs cleared. Reloading...");
-            setTimeout(() => window.location.reload(), 1500);
+            setTimeout(() => window.location.reload(), 1000);
         } catch (e) {
             setStatus("Error clearing data: " + (e as Error).message);
         } finally {
